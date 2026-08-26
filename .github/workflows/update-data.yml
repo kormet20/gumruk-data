@@ -1,0 +1,45 @@
+name: Gumruk verisini guncelle
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # her Pazartesi 06:00 UTC (14:00 Shanghai)
+  workflow_dispatch: {}    # elle tetikleme
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: ABD ithalat verisini cek (Census)
+        env:
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+        run: python scripts/fetch_census.py
+
+      - name: Brezilya ithalat verisini cek (Comex Stat)
+        run: python scripts/fetch_comexstat.py
+
+      - name: Anomalileri hesapla
+        run: python scripts/anomaly.py
+
+      - name: Raporu uret
+        run: python scripts/make_report.py
+
+      - name: Degisiklikleri commit et
+        run: |
+          git config user.name "gumruk-bot"
+          git config user.email "actions@github.com"
+          git add data/ reports/
+          if git diff --cached --quiet; then
+            echo "Yeni veri yok."
+          else
+            git commit -m "Veri guncellendi: $(date -u +%Y-%m-%d)"
+            git push
+          fi
