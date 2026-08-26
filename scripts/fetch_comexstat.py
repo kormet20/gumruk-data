@@ -118,12 +118,22 @@ def main():
     if not months:
         print("ComexStat: yeni ay yok, guncel.")
         return
-    frm, to = months[0], months[-1]
     codes = resolve_country_codes()
+
+    # ComexStat API 'period' parametresini yil araligi + ay penceresi olarak yorumlar;
+    # bu yuzden her yili kendi icinde (ayni-yil from/to ile) cekiyoruz.
+    year_windows = {}
+    for m in months:
+        y = m[:4]
+        year_windows.setdefault(y, []).append(m)
 
     new_rows = []
     for corridor, code in codes.items():
-        rows = fetch_period(code, frm, to)
+        rows = []
+        for y in sorted(year_windows):
+            ym = sorted(year_windows[y])
+            rows.extend(fetch_period(code, ym[0], ym[-1]))
+            _t.sleep(1)
         for r in rows:
             ym_y = str(r.get("year") or r.get("coAno") or "")
             ym_m = str(r.get("monthNumber") or r.get("coMes") or "").zfill(2)
